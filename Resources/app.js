@@ -6,13 +6,12 @@ var win = Titanium.UI.createWindow({
 });
 win.open();
 
-var apiKey		= 'twitter-api-key';
-var apiSecret	= 'twitter-api-secret';
+var apiKey		= 'api key';
+var apiSecret	= 'api secret';
 // Require twitter module
-var twitter		= require('/lib/twitter');
+var TwitterAPI		= require('/lib/twitter').twitterAPI;
 
-// Set API credentials 
-twitter.credentials(apiKey,apiSecret);
+var twitter = 		new TwitterAPI(apiKey, apiSecret);
 twitter.deleteAccessToken();
 
 // Set authorization callback
@@ -22,9 +21,9 @@ twitter.authCallback(function(){
 
 // Try to send a tweet
 twitter.send('POST','https://api.twitter.com/1/statuses/update.json',{
-	status: 'UTF-8 seems to work too'
+	status: 'This is awesome'
 }, function(data){
-	Ti.API.info(JSON.parse(data));
+	Ti.API.info(data);
 });
 
 // Check login status
