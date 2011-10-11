@@ -5,8 +5,10 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 	 *	@author Marcel Pociot <m.pociot@gmail.com>
 	 */
 	// Dependencies
-	var helper	= require('/lib/helper'),
-		hmac	= require('/lib/sha1');
+	var helperClass	= require('/lib/helper').helper,
+		hmacClass	= require('/lib/sha1').hmacsha1;
+	var helper		= new helperClass();
+	var hmac		= new hmacClass();
 	// Private
 	// Consumer key from twitter
 	var consumerKey			= _consumerKey,
@@ -26,6 +28,8 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 		authWin				= null,
 	// Callback after successful authorization
 		authCallback		= null,
+	// Callback after network error / offline state
+		offlineCallback		= null,
 	// Items waiting in queue
 		queue				= [],
 	// DOM PIN selector
@@ -44,6 +48,10 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 	// Public
 	this.authCallback	= function(callback){
 		authCallback	= callback;
+	};
+	// Set offline Callback
+	this.offlineCallback	= function(callback){
+		offlineCallback	= callback;
 	};
 	/**
 	 * Setter and getter functions
@@ -134,14 +142,14 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 	 * @return string
 	 */
 	this.buildBaseString	= function(_httpMethod, _url, _parameters){
-		var baseString		= _httpMethod.toUpperCase() + '&' + helper.percentEncode(_url) + '&';
+		var baseString		= _httpMethod.toUpperCase() + '&' + helper.urlencode(_url) + '&';
 		var parameterString	= '';
 		for( var key in _parameters) {
 			var value	= _parameters[key];
-			parameterString += helper.percentEncode(key) + '=' + helper.percentEncode(value) + '&';
+			parameterString += helper.urlencode(key) + '=' + helper.urlencode(value) + '&';
 		}
 		parameterString	= parameterString.substr(0, (parameterString.length - 1 ));
-		baseString += helper.percentEncode(parameterString);
+		baseString += helper.urlencode(parameterString);
 		return baseString;
 	};
 	
@@ -153,7 +161,7 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 	 * @return string
 	 */
 	this.buildSigningKey	= function(_secret){
-		return helper.percentEncode(consumerSecret) + '&' + helper.percentEncode(_secret);
+		return helper.urlencode(consumerSecret) + '&' + helper.urlencode(_secret);
 	};
 	
 	/**
@@ -179,7 +187,7 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 			// Only use keys that start with "oauth_"
 			if( key.indexOf("oauth_") == 0 ){
 				var value = _parameters[key];
-				header += key +'="'+helper.percentEncode(value)+'", ';
+				header += key +'="'+helper.urlencode(value)+'", ';
 			}
 		}
 		header	= header.substr(0, (header.length-2) );
@@ -241,28 +249,32 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 	 * Opens a new modal window containing a webview with twitters authorize site
 	 */
 	this.authorize		= function(_title){
-		var title	= _title || 'Twitter';
-		// Get the request token
-		this.acquireRequestToken();
-		authWin	= Ti.UI.createWindow({
-			title: title,
-			modal: true,
-			fullscreen: true
-		});
-		var authURL	= urls.authorize + '?oauth_token='+requestToken;
-		var webView	= Ti.UI.createWebView({
-			url: authURL
-		});
-		// Add event to check for PIN code
-		webView.addEventListener('load',function(object){
-			return function(e){
-				if( object.checkPIN(e) ){
-					object.acquireAccessToken();
-				}
-			};
-		}(this));
-		authWin.add(webView);
-		authWin.open();
+		if( Ti.Network.online ){
+			var title	= _title || 'Twitter';
+			// Get the request token
+			this.acquireRequestToken();
+			authWin	= Ti.UI.createWindow({
+				title: title,
+				modal: true,
+				fullscreen: true
+			});
+			var authURL	= urls.authorize + '?oauth_token='+requestToken;
+			var webView	= Ti.UI.createWebView({
+				url: authURL
+			});
+			// Add event to check for PIN code
+			webView.addEventListener('load',function(object){
+				return function(e){
+					if( object.checkPIN(e) ){
+						object.acquireAccessToken();
+					}
+				};
+			}(this));
+			authWin.add(webView);
+			authWin.open();
+		} else {
+			return false;
+		}
 	};
 	
 	/**
@@ -343,6 +355,10 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 									authCallback.call(this,result);
 								}
 								this.processQueue();
+							},function(result){
+								if( typeof offlineCallback === 'function' ){
+									offlineCallback.call(this,result);
+								}
 							});
 		// Reset verifier
 		oauthVerifier	= '';
@@ -354,7 +370,7 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 	 * @param _parameters Object/Array containing the additional API parameters
 	 * @param _callback function to call after successful execution
 	 */
-	this.send			= function(_httpMethod, _url, _parameters, _callback){
+	this.send			= function(_httpMethod, _url, _parameters, _callback, _offlineCallback){
 		if( !this.isAuthorized() ){
 			var action	= {};
 			action.httpMethod	= _httpMethod;
@@ -372,7 +388,8 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 						 _url,
 						 parameters,
 						 accessTokenSecret,
-						 _callback);
+						 _callback,
+						 _offlineCallback);
 	};
 	
 	/**
@@ -387,7 +404,7 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 	 * 
 	 * @return void
 	 */
-	this.sendRequest	= function(_httpMethod, _url, _parameters, _tokenSecret, _callback){
+	this.sendRequest	= function(_httpMethod, _url, _parameters, _tokenSecret, _callback, _offlineCallback){
 		// Create the base string
 		var baseString				= this.buildBaseString(_httpMethod, _url, _parameters);
 		// Create the signing key
@@ -405,6 +422,15 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 		xhr.open(_httpMethod.toUpperCase(), _url, false );
 		xhr.setRequestHeader('Authorization', header);
 		xhr.send( postParameters || {} );
+		if( typeof _offlineCallback === 'function' ){
+			// Set custom error callback
+			xhr.onerror	= _offlineCallback;
+		} else {
+			// Set global error callback
+			if( typeof offlineCallback === 'function' ){
+				xhr.onerror = offlineCallback;
+			}
+		}
 		// If everything's cool get the result and fire the callback
 		if( xhr.status == 200 ){
 			var result	= this.parseResult(xhr.responseText);
@@ -415,7 +441,17 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 				_callback.call(this, result);
 			}
 		} else {
+			var result	= xhr.responseText;
 			Ti.API.debug("Request failed with response: "+xhr.responseText);
+			if( typeof _offlineCallback === 'function' ){
+				// Set custom error callback
+				_offlineCallback.call(this, result);
+			} else {
+				// Set global error callback
+				if( typeof offlineCallback === 'function' ){
+					offlineCallback.call(this, result);
+				}
+			}
 		}
 	};
 };
