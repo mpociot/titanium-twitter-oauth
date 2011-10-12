@@ -1,4 +1,5 @@
 function TwitterAPI(_consumerKey,_consumerSecret){
+	
 	/**
 	 *	Twitter API Module 
 	 * 
@@ -14,6 +15,10 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 	var consumerKey			= _consumerKey,
 	// Consumer secret from twitter
 		consumerSecret		= _consumerSecret,
+	// Should the API open the auth window automatically on a send request?
+		autoAuthorize		= false,
+	// Private var to determine if there's a current authorization view 
+		isAuthorizing		= false,
 	// OAuth Request Token
 		requestToken		= '',
 	// OAuth Request Token Secret
@@ -53,6 +58,10 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 	this.offlineCallback	= function(callback){
 		offlineCallback	= callback;
 	};
+	// Set auto authorization
+	this.autoAuthorize		= function(_autoAuthorize){
+		autoAuthorize	= _autoAuthorize;
+	}
 	/**
 	 * Setter and getter functions
 	 * due to a bug / Ti Restriction we don't use
@@ -249,7 +258,7 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 	 * Opens a new modal window containing a webview with twitters authorize site
 	 */
 	this.authorize		= function(_title){
-		if( Ti.Network.online ){
+		if( Ti.Network.online && !isAuthorizing ){
 			var title	= _title || 'Twitter';
 			// Get the request token
 			this.acquireRequestToken();
@@ -258,6 +267,22 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 				modal: true,
 				fullscreen: true
 			});
+			if( Ti.Platform.osname !== 'android' ){
+				// iOS Cancel button
+				var cancelButton	= Ti.UI.createButton({
+					title: 'Close'
+				});
+				cancelButton.addEventListener('click',function(e){
+					authWin.close();
+					// Release memory
+					authWin			= null;
+					// Allow new authorizations
+					isAuthorizing	= false;
+				});
+				authWin.leftNavButton	= cancelButton;
+			} else {
+				// Android specific cancel button
+			}
 			var authURL	= urls.authorize + '?oauth_token='+requestToken;
 			var webView	= Ti.UI.createWebView({
 				url: authURL
@@ -272,6 +297,7 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 			}(this));
 			authWin.add(webView);
 			authWin.open();
+			isAuthorizing	= true;
 		} else {
 			return false;
 		}
@@ -287,6 +313,7 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 		var pin			= webView.evalJS(pinSelector);
 		if( pin.length > 0 ){
 			// Save pin
+			isAuthorizing	= false;
 			oauthVerifier	= pin;
 			authWin.close();
 			authWin		= null;
@@ -372,13 +399,18 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 	 */
 	this.send			= function(_httpMethod, _url, _parameters, _callback, _offlineCallback){
 		if( !this.isAuthorized() ){
+			// Push action to queue
 			var action	= {};
 			action.httpMethod	= _httpMethod;
 			action.url			= _url;
 			action.parameters	= _parameters;
 			action.callback		= _callback;
 			queue.push( action );
-			return;
+			// If auto authorization is set to true, try to authenticate the user now
+			if( autoAuthorize === true ){
+				this.authorize();
+			}
+			return false;
 		}
 		
 		var parameters		= this.buildParameters(helper.combine(_parameters,{
