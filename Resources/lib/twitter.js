@@ -51,16 +51,25 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 	};
 	
 	// Public
-	this.authCallback	= function(callback){
-		authCallback	= callback;
+	this.authCallback	= function(_callback){
+		if( typeof _callback === 'function' ){
+			authCallback	= _callback;
+		}
+		return (typeof _callback === 'function');
 	};
 	// Set offline Callback
-	this.offlineCallback	= function(callback){
-		offlineCallback	= callback;
+	this.offlineCallback	= function(_callback){
+		if( typeof _callback === 'function' ){
+			offlineCallback	= _callback;
+		}
+		return (typeof _callback === 'function');
 	};
 	// Set auto authorization
 	this.autoAuthorize		= function(_autoAuthorize){
-		autoAuthorize	= _autoAuthorize;
+		if( typeof _autoAuthorize === 'boolean' ){
+			autoAuthorize	= _autoAuthorize;
+		}
+		return (typeof _autoAuthorize === 'boolean');
 	}
 	/**
 	 * Setter and getter functions
