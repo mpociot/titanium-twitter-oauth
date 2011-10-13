@@ -3,33 +3,10 @@ Twitter Module for Titanium Mobile
 So this is my approach to the twitter OAuth API for the Titanium Mobile contest.
 
 Using this module is pretty straightforward.
-Copy the "lib" folder into your project directory.
+I didn't had the time to include more tests and examples.
+There's also still an issue with android that I couldn't fix.
 
-In your app.js write:
+All tests are running, so the correct signatures and signing keys get generated.
+The problem seems to be on the HTTP Request, that get's sent to twitter. It seems like the Authorization header doesn't get set.
 
-// Set Credentials
-var apiKey		= 'api key';
-var apiSecret	= 'api secret';
-// Require twitter module
-var TwitterAPI		= require('/lib/twitter').twitterAPI;
-
-var twitter = 		new TwitterAPI(apiKey, apiSecret);
-twitter.deleteAccessToken();
-
-// Set authorization callback
-twitter.authCallback(function(){
-	twitter.saveAccessToken();
-});
-
-// Try to send a tweet
-twitter.send('POST','https://api.twitter.com/1/statuses/update.json',{
-	status: 'This is awesome'
-}, function(data){
-	Ti.API.info(data);
-	alert("Tweet successful");
-});
-
-// Check login status
-if( !twitter.isAuthorized() ){
-	twitter.authorize();
-}
+But anyways - I just did this for fun.
