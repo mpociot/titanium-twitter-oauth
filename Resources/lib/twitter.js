@@ -6,8 +6,8 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 	 *	@author Marcel Pociot <m.pociot@gmail.com>
 	 */
 	// Dependencies
-	var helperClass	= require('/lib/helper').helper,
-		hmacClass	= require('/lib/sha1').hmacsha1;
+	var helperClass	= require('lib/helper').helper,
+		hmacClass	= require('lib/sha1').hmacsha1;
 	var helper		= new helperClass();
 	var hmac		= new hmacClass();
 	// Private
@@ -271,12 +271,13 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 			var title	= _title || 'Twitter';
 			// Get the request token
 			this.acquireRequestToken();
-			authWin	= Ti.UI.createWindow({
-				title: title,
-				modal: true,
-				fullscreen: true
-			});
 			if( Ti.Platform.osname !== 'android' ){
+				var authWin	= Ti.UI.createWindow({
+					title: title,
+					top:0,
+					modal: true,
+					fullscreen: true
+				});
 				// iOS Cancel button
 				var cancelButton	= Ti.UI.createButton({
 					title: 'Close'
@@ -290,7 +291,10 @@ function TwitterAPI(_consumerKey,_consumerSecret){
 				});
 				authWin.leftNavButton	= cancelButton;
 			} else {
-				// Android specific cancel button
+				// Android specific window
+				var authWin	= Ti.UI.createWindow({
+					top:0
+				});
 			}
 			var authURL	= urls.authorize + '?oauth_token='+requestToken;
 			var webView	= Ti.UI.createWebView({
