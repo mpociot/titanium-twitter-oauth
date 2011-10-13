@@ -51,7 +51,8 @@
 		suite: 'twitter',
 		unit: function(){
 			/**
-			 * Example data taken from twitters OAuth example page 
+			 * Example data and expected data taken from twitters OAuth example page
+			 * https://dev.twitter.com/docs/auth/oauth 
 			 */
 			var exampleObject	= {
 				oauth_callback : 'http://localhost:3005/the_dance/process_callback?service_provider_id=11',
