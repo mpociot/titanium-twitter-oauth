@@ -51,8 +51,7 @@
 		suite: 'twitter',
 		unit: function(){
 			/**
-			 * Example data and expected data taken from twitters OAuth example page
-			 * https://dev.twitter.com/docs/auth/oauth 
+			 * Example data taken from twitters OAuth example page 
 			 */
 			var exampleObject	= {
 				oauth_callback : 'http://localhost:3005/the_dance/process_callback?service_provider_id=11',
@@ -65,6 +64,9 @@
 			var consumerKey		= 'GDdmIQH6jhtmLUypg82g';
 			var consumerSecret	= 'MCD8BKwGdgPHvAuvgvz4EQpqDAtx89grbuNMRd7Eh98';
 			var twitter 		= new TwitterAPI(consumerKey,consumerSecret);
+			
+			he.test.assert(twitter.isAuthorized() === false, 'Testing that isAuthorized returns false');
+			
 			var baseString	= twitter.buildBaseString('POST','https://api.twitter.com/oauth/request_token', exampleObject);
 			var expectedBaseString = 'POST&https%3A%2F%2Fapi.twitter.com%2Foauth%2Frequest_token&oauth_callback%3Dhttp%253A%252F%252Flocalhost%253A3005%252Fthe_dance%252Fprocess_callback%253Fservice_provider_id%253D11%26oauth_consumer_key%3DGDdmIQH6jhtmLUypg82g%26oauth_nonce%3DQP70eNmVz8jvdPevU3oJD2AfF7R7odC2XJcn4XlZJqk%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1272323042%26oauth_version%3D1.0';
 			he.test.assert(baseString === expectedBaseString,'Testing Base String function');
